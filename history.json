@@ -1,0 +1,72 @@
+[
+    {
+        "loanAmount": 234456.0,
+        "creditScore": 625.0,
+        "defaultProbability": 0.0078,
+        "prediction": 0,
+        "riskLevel": "Low"
+    },
+    {
+        "loanAmount": 85000.0,
+        "creditScore": 780.0,
+        "defaultProbability": 0.0391,
+        "prediction": 0,
+        "riskLevel": "Low"
+    },
+    {
+        "loanAmount": 25000.0,
+        "creditScore": 520.0,
+        "defaultProbability": 0.0783,
+        "prediction": 0,
+        "riskLevel": "Low"
+    },
+    {
+        "loanAmount": 150000.0,
+        "creditScore": 650.0,
+        "defaultProbability": 0.1096,
+        "prediction": 0,
+        "riskLevel": "Low"
+    },
+    {
+        "loanAmount": 200000.0,
+        "creditScore": 510.0,
+        "defaultProbability": 0.4741,
+        "prediction": 0,
+        "riskLevel": "Moderate"
+    },
+    {
+        "loanAmount": 250000.0,
+        "creditScore": 420.0,
+        "defaultProbability": 0.5777,
+        "prediction": 1,
+        "riskLevel": "Moderate"
+    },
+    {
+        "loanAmount": 300000.0,
+        "creditScore": 450.0,
+        "defaultProbability": 0.6507,
+        "prediction": 1,
+        "riskLevel": "High"
+    },
+    {
+        "loanAmount": 300000.0,
+        "creditScore": 450.0,
+        "defaultProbability": 0.6507,
+        "prediction": 1,
+        "riskLevel": "High"
+    },
+    {
+        "loanAmount": 20000.0,
+        "creditScore": 700.0,
+        "defaultProbability": 0.3757,
+        "prediction": 0,
+        "riskLevel": "Moderate"
+    },
+    {
+        "loanAmount": 30000.0,
+        "creditScore": 680.0,
+        "defaultProbability": 0.2486,
+        "prediction": 0,
+        "riskLevel": "Low"
+    }
+]
