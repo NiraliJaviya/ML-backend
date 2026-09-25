@@ -14,10 +14,8 @@ from pydantic import BaseModel
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-
 MODEL_DIR = BASE_DIR / "model"
 
-# Final model artifacts
 MODEL_PATH = MODEL_DIR / "loan_default_final_model.pkl"
 SCALER_PATH = MODEL_DIR / "loan_default_final_scaler.pkl"
 FEATURES_PATH = MODEL_DIR / "loan_default_final_features.pkl"
@@ -36,19 +34,16 @@ def load_prediction_history():
         return []
 
     try:
-
         with open(HISTORY_PATH, "r") as file:
             return json.load(file)
 
     except (json.JSONDecodeError, OSError):
-
         return []
 
 
 def save_prediction_history(history):
 
     with open(HISTORY_PATH, "w") as file:
-
         json.dump(
             history,
             file,
@@ -56,37 +51,19 @@ def save_prediction_history(history):
         )
 
 
-# Load existing history when FastAPI starts
 prediction_history = load_prediction_history()
 
 
 # ============================================================
 # 3. FINAL MODEL EVALUATION METRICS
 # ============================================================
-#
-# Final Tuned Random Forest
-#
-# Test Accuracy : 0.793538
-# Precision     : 0.285222
-# Recall        : 0.516439
-# F1 Score      : 0.367487
-# ROC-AUC       : 0.754406
-#
-# Final classification threshold = 0.55
-# ============================================================
 
 MODEL_METRICS = {
-
     "accuracy": 0.793538,
-
     "precision": 0.285222,
-
     "recall": 0.516439,
-
     "f1Score": 0.367487,
-
     "rocAuc": 0.754406,
-
     "threshold": 0.55
 }
 
@@ -106,49 +83,41 @@ app = FastAPI(
 # 5. CORS
 # ============================================================
 
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://ml-frontend-pi.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://ml-frontend-pi.vercel.app",
-    ],
-
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-
-    allow_methods=["*"],
-
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 # ============================================================
 # 6. CHECK MODEL FILES
 # ============================================================
 
 if not MODEL_PATH.exists():
-
     raise FileNotFoundError(
         f"Final model file not found: {MODEL_PATH}"
     )
 
-
 if not SCALER_PATH.exists():
-
     raise FileNotFoundError(
         f"Final scaler file not found: {SCALER_PATH}"
     )
 
-
 if not FEATURES_PATH.exists():
-
     raise FileNotFoundError(
         f"Final features file not found: {FEATURES_PATH}"
     )
 
-
 if not THRESHOLD_PATH.exists():
-
     raise FileNotFoundError(
         f"Final threshold file not found: {THRESHOLD_PATH}"
     )
@@ -159,11 +128,8 @@ if not THRESHOLD_PATH.exists():
 # ============================================================
 
 model = joblib.load(MODEL_PATH)
-
 scaler = joblib.load(SCALER_PATH)
-
 features = joblib.load(FEATURES_PATH)
-
 classification_threshold = joblib.load(THRESHOLD_PATH)
 
 
@@ -198,6 +164,7 @@ print("Threshold loaded successfully.")
 print("Number of features:", len(feature_names))
 print("Classification threshold:", classification_threshold)
 print("Saved prediction history:", len(prediction_history))
+print("Allowed CORS origins:", ALLOWED_ORIGINS)
 print("========================================")
 
 
@@ -206,7 +173,6 @@ print("========================================")
 # ============================================================
 
 numerical_columns = [
-
     "Age",
     "Income",
     "LoanAmount",
@@ -216,7 +182,6 @@ numerical_columns = [
     "InterestRate",
     "LoanTerm",
     "DTIRatio"
-
 ]
 
 
@@ -225,12 +190,10 @@ numerical_columns = [
 # ============================================================
 
 categorical_columns = [
-
     "Education",
     "EmploymentType",
     "MaritalStatus",
     "LoanPurpose"
-
 ]
 
 
@@ -239,11 +202,9 @@ categorical_columns = [
 # ============================================================
 
 binary_columns = [
-
     "HasMortgage",
     "HasDependents",
     "HasCoSigner"
-
 ]
 
 
@@ -254,31 +215,20 @@ binary_columns = [
 class LoanApplication(BaseModel):
 
     Age: float
-
     Income: float
-
     LoanAmount: float
-
     CreditScore: float
-
     MonthsEmployed: float
-
     NumCreditLines: float
-
     InterestRate: float
-
     LoanTerm: float
-
     DTIRatio: float
 
     Education: str
-
     EmploymentType: str
-
     MaritalStatus: str
 
     HasMortgage: bool
-
     HasDependents: bool
 
     LoanPurpose: str
@@ -294,22 +244,32 @@ class LoanApplication(BaseModel):
 def root():
 
     return {
-
         "message": "LoanGuard API is running!",
-
         "model": "Tuned Random Forest",
-
         "threshold": float(classification_threshold),
-
         "features": len(feature_names),
-
-        "history_records": len(prediction_history)
-
+        "history_records": len(prediction_history),
+        "cors": "enabled"
     }
 
 
 # ============================================================
-# 15. PREDICTION ENDPOINT
+# 15. HEALTH CHECK
+# ============================================================
+
+@app.get("/health")
+def health_check():
+
+    return {
+        "status": "healthy",
+        "message": "LoanGuard backend is running",
+        "model": "Tuned Random Forest",
+        "cors": "enabled"
+    }
+
+
+# ============================================================
+# 16. PREDICTION ENDPOINT
 # ============================================================
 
 @app.post("/predict")
@@ -317,134 +277,56 @@ def predict_loan(application: LoanApplication):
 
     try:
 
-        # ----------------------------------------------------
         # Convert Pydantic object to dictionary
-        # ----------------------------------------------------
-
         data = application.model_dump()
 
-
-        # ----------------------------------------------------
         # Create DataFrame
-        # ----------------------------------------------------
-
         df = pd.DataFrame([data])
 
-
-        # ----------------------------------------------------
         # Convert boolean columns to 0 / 1
-        # ----------------------------------------------------
-
         for column in binary_columns:
-
             df[column] = df[column].astype(int)
 
-
-        # ----------------------------------------------------
         # One-hot encoding
-        #
-        # Same preprocessing used during training
-        # ----------------------------------------------------
-
         df = pd.get_dummies(
-
             df,
-
             columns=categorical_columns,
-
             drop_first=True,
-
             dtype=int
-
         )
 
-
-        # ----------------------------------------------------
         # Match training features
-        #
-        # Missing features become 0.
-        # Extra features are removed.
-        # Original training order is maintained.
-        # ----------------------------------------------------
-
         df = df.reindex(
-
             columns=feature_names,
-
             fill_value=0
-
         )
 
-
-        # ----------------------------------------------------
         # Scale numerical columns
-        #
-        # IMPORTANT:
-        # Use transform(), NOT fit_transform().
-        # ----------------------------------------------------
-
         df[numerical_columns] = scaler.transform(
-
             df[numerical_columns]
-
         )
 
-
-        # ====================================================
-        # MODEL PREDICTION
-        # ====================================================
-        #
-        # The final Random Forest produces a probability.
-        #
-        # We use the selected final threshold of 0.55:
-        #
-        # probability >= 0.55 -> Default
-        # probability <  0.55 -> No Default
-        # ====================================================
-
+        # Model probability
         probability = float(
-
             model.predict_proba(df)[0][1]
-
         )
 
-
-        # ----------------------------------------------------
-        # Apply final classification threshold
-        # ----------------------------------------------------
-
+        # Apply final threshold
         prediction = int(
-
             probability >= classification_threshold
-
         )
 
-
-        # ====================================================
-        # RISK LEVEL
-        # ====================================================
-
+        # Risk level
         if probability < 0.30:
-
             risk_level = "Low"
 
         elif probability < 0.60:
-
             risk_level = "Moderate"
 
         else:
-
             risk_level = "High"
 
-        # ====================================================
-        # MODEL FEATURE IMPORTANCE
-        # ====================================================
-        #
-        # Random Forest feature_importances_ describes the
-        # global importance of features across the trained
-        # model. It is NOT a per-applicant causal explanation.
-        # ====================================================
-
+        # Feature importance
         feature_importances = model.feature_importances_
 
         top_indices = feature_importances.argsort()[::-1][:8]
@@ -452,6 +334,7 @@ def predict_loan(application: LoanApplication):
         model_features = []
 
         for index in top_indices:
+
             model_features.append({
                 "feature": feature_names[index],
                 "importance": round(
@@ -460,53 +343,26 @@ def predict_loan(application: LoanApplication):
                 )
             })
 
-
-        # ====================================================
-        # CREATE HISTORY RECORD
-        # ====================================================
-
+        # Create history record
         history_record = {
-
             "loanAmount": application.LoanAmount,
-
             "creditScore": application.CreditScore,
-
             "defaultProbability": round(
                 probability,
                 4
             ),
-
             "prediction": prediction,
-
             "riskLevel": risk_level
-
         }
 
-
-        # ----------------------------------------------------
         # Add prediction to history
-        # ----------------------------------------------------
-
         prediction_history.append(history_record)
 
+        # Save history
+        save_prediction_history(prediction_history)
 
-        # ----------------------------------------------------
-        # Save history to JSON
-        # ----------------------------------------------------
-
-        save_prediction_history(
-
-            prediction_history
-
-        )
-
-
-        # ====================================================
-        # RESPONSE
-        # ====================================================
-
+        # Response
         return {
-
             "prediction": prediction,
 
             "default_probability": round(
@@ -525,23 +381,18 @@ def predict_loan(application: LoanApplication):
             "factors": {
                 "modelFeatures": model_features
             }
-
         }
-
 
     except Exception as e:
 
         raise HTTPException(
-
             status_code=500,
-
             detail=f"Prediction failed: {str(e)}"
-
         )
 
 
 # ============================================================
-# 16. PREDICTION HISTORY
+# 17. PREDICTION HISTORY
 # ============================================================
 
 @app.get("/history")
@@ -551,439 +402,219 @@ def get_prediction_history():
 
 
 # ============================================================
-# 17. RISK PROBABILITY DISTRIBUTION
+# 18. RISK PROBABILITY DISTRIBUTION
 # ============================================================
 
 def get_risk_probability_distribution():
 
     buckets = [
-
-        {
-            "bucket": "0-10%",
-            "count": 0
-        },
-
-        {
-            "bucket": "10-20%",
-            "count": 0
-        },
-
-        {
-            "bucket": "20-30%",
-            "count": 0
-        },
-
-        {
-            "bucket": "30-40%",
-            "count": 0
-        },
-
-        {
-            "bucket": "40-50%",
-            "count": 0
-        },
-
-        {
-            "bucket": "50-60%",
-            "count": 0
-        },
-
-        {
-            "bucket": "60-70%",
-            "count": 0
-        },
-
-        {
-            "bucket": "70-80%",
-            "count": 0
-        },
-
-        {
-            "bucket": "80-90%",
-            "count": 0
-        },
-
-        {
-            "bucket": "90-100%",
-            "count": 0
-        }
-
+        {"bucket": "0-10%", "count": 0},
+        {"bucket": "10-20%", "count": 0},
+        {"bucket": "20-30%", "count": 0},
+        {"bucket": "30-40%", "count": 0},
+        {"bucket": "40-50%", "count": 0},
+        {"bucket": "50-60%", "count": 0},
+        {"bucket": "60-70%", "count": 0},
+        {"bucket": "70-80%", "count": 0},
+        {"bucket": "80-90%", "count": 0},
+        {"bucket": "90-100%", "count": 0}
     ]
-
 
     for item in prediction_history:
 
         probability = float(
-
             item["defaultProbability"]
-
         )
-
-
-        # Convert probability into bucket index.
-        #
-        # Example:
-        # 0.08 -> index 0 -> 0-10%
-        # 0.15 -> index 1 -> 10-20%
-        # 0.43 -> index 4 -> 40-50%
-        # 0.78 -> index 7 -> 70-80%
 
         index = min(
-
             int(probability * 10),
-
             9
-
         )
 
-
         buckets[index]["count"] += 1
-
 
     return buckets
 
 
 # ============================================================
-# 18. FEATURE OVERVIEW
-# ============================================================
-#
-# Random Forest uses feature_importances_
-# instead of Logistic Regression's coef_.
+# 19. FEATURE OVERVIEW
 # ============================================================
 
 def get_feature_overview():
 
     try:
 
-        # ----------------------------------------------------
-        # Random Forest feature importance
-        # ----------------------------------------------------
-
         feature_importances = model.feature_importances_
-
 
         feature_importance = []
 
-
-        # ----------------------------------------------------
-        # Pair feature names with importance values
-        # ----------------------------------------------------
-
         for feature, importance in zip(
-
             feature_names,
-
             feature_importances
-
         ):
 
             feature_importance.append({
-
                 "feature": feature,
-
-                "importance": float(
-                    importance
-                )
-
+                "importance": float(importance)
             })
 
-
-        # ----------------------------------------------------
-        # Sort from highest importance to lowest
-        # ----------------------------------------------------
-
         feature_importance.sort(
-
             key=lambda item: item["importance"],
-
             reverse=True
-
         )
-
-
-        # ----------------------------------------------------
-        # Keep top 8 features
-        # ----------------------------------------------------
 
         top_features = feature_importance[:8]
 
-
-        # ----------------------------------------------------
-        # Normalize importance values
-        #
-        # This makes the chart easier to understand.
-        # ----------------------------------------------------
-
         total_importance = sum(
-
             item["importance"]
-
             for item in top_features
-
         )
-
 
         if total_importance > 0:
 
             for item in top_features:
 
                 item["importance"] = round(
-
                     item["importance"]
                     / total_importance,
-
                     4
-
                 )
 
-
-        # ----------------------------------------------------
-        # Convert technical feature names into
-        # user-friendly names
-        # ----------------------------------------------------
-
+        # User-friendly feature names
         for item in top_features:
 
             feature = item["feature"]
 
-
-            if feature.startswith(
-                "EmploymentType_"
-            ):
+            if feature.startswith("EmploymentType_"):
 
                 feature = (
-
                     "Employment Type: "
-
                     + feature.replace(
-
                         "EmploymentType_",
-
                         ""
-
                     )
-
                 )
 
-
-            elif feature.startswith(
-                "Education_"
-            ):
+            elif feature.startswith("Education_"):
 
                 feature = (
-
                     "Education: "
-
                     + feature.replace(
-
                         "Education_",
-
                         ""
-
                     )
-
                 )
 
-
-            elif feature.startswith(
-                "MaritalStatus_"
-            ):
+            elif feature.startswith("MaritalStatus_"):
 
                 feature = (
-
                     "Marital Status: "
-
                     + feature.replace(
-
                         "MaritalStatus_",
-
                         ""
-
                     )
-
                 )
 
-
-            elif feature.startswith(
-                "LoanPurpose_"
-            ):
+            elif feature.startswith("LoanPurpose_"):
 
                 feature = (
-
                     "Loan Purpose: "
-
                     + feature.replace(
-
                         "LoanPurpose_",
-
                         ""
-
                     )
-
                 )
-
 
             elif feature == "HasMortgage":
 
                 feature = "Has Mortgage"
 
-
             elif feature == "HasDependents":
 
                 feature = "Has Dependents"
-
 
             elif feature == "HasCoSigner":
 
                 feature = "Has Co-Signer"
 
-
             item["feature"] = feature
 
-
         return top_features
-
 
     except Exception as e:
 
         print(
-
             "Feature overview error:",
-
             str(e)
-
         )
 
         return []
 
 
 # ============================================================
-# 19. ANALYTICS
+# 20. ANALYTICS
 # ============================================================
 
 @app.get("/analytics")
 def get_analytics():
 
-    # ========================================================
-    # TOTAL APPLICATIONS
-    # ========================================================
-
     total_applications = len(
-
         prediction_history
-
     )
 
-
-    # ========================================================
-    # DEFAULT / NO DEFAULT
-    # ========================================================
-
+    # Default / No Default
     default_predictions = sum(
-
         item["prediction"] == 1
-
         for item in prediction_history
-
     )
-
 
     no_default_predictions = sum(
-
         item["prediction"] == 0
-
         for item in prediction_history
-
     )
 
-
-    # ========================================================
-    # AVERAGE RISK PROBABILITY
-    # ========================================================
-
+    # Average risk probability
     if total_applications > 0:
 
         average_risk_probability = (
-
             sum(
-
                 item["defaultProbability"]
-
                 for item in prediction_history
-
             )
-
             / total_applications
-
         )
 
     else:
 
         average_risk_probability = 0
 
-
-    # ========================================================
-    # RISK DISTRIBUTION
-    # ========================================================
-
+    # Risk distribution
     low_risk = sum(
-
         item["riskLevel"] == "Low"
-
         for item in prediction_history
-
     )
-
 
     moderate_risk = sum(
-
         item["riskLevel"] == "Moderate"
-
         for item in prediction_history
-
     )
-
 
     high_risk = sum(
-
         item["riskLevel"] == "High"
-
         for item in prediction_history
-
     )
 
-
-    # ========================================================
-    # REAL PROBABILITY DISTRIBUTION
-    # ========================================================
-
+    # Probability distribution
     risk_probability_distribution = (
-
         get_risk_probability_distribution()
-
     )
 
-
-    # ========================================================
-    # REAL RANDOM FOREST FEATURE IMPORTANCE
-    # ========================================================
-
+    # Feature importance
     feature_overview = (
-
         get_feature_overview()
-
     )
-
-
-    # ========================================================
-    # RETURN ANALYTICS
-    # ========================================================
 
     return {
-
-        # ----------------------------------------------------
-        # Summary metrics
-        # ----------------------------------------------------
 
         "totals": {
 
@@ -998,19 +629,10 @@ def get_analytics():
 
             "averageRiskProbability":
                 round(
-
                     average_risk_probability,
-
                     4
-
                 )
-
         },
-
-
-        # ----------------------------------------------------
-        # Default vs No Default chart
-        # ----------------------------------------------------
 
         "defaultVsNoDefault": [
 
@@ -1023,13 +645,7 @@ def get_analytics():
                 "name": "Default",
                 "value": default_predictions
             }
-
         ],
-
-
-        # ----------------------------------------------------
-        # Risk distribution chart
-        # ----------------------------------------------------
 
         "riskDistribution": [
 
@@ -1047,37 +663,13 @@ def get_analytics():
                 "name": "High Risk",
                 "value": high_risk
             }
-
         ],
 
-
-        # ----------------------------------------------------
-        # Risk probability distribution chart
-        #
-        # Frontend expects:
-        # bucket + count
-        # ----------------------------------------------------
-
         "riskProbabilityDistribution":
-
             risk_probability_distribution,
 
-
-        # ----------------------------------------------------
-        # Feature overview chart
-        #
-        # Frontend expects:
-        # feature + importance
-        # ----------------------------------------------------
-
         "featureOverview":
-
             feature_overview,
-
-
-        # ----------------------------------------------------
-        # Final model information
-        # ----------------------------------------------------
 
         "model": {
 
@@ -1104,7 +696,5 @@ def get_analytics():
 
             "threshold":
                 MODEL_METRICS["threshold"]
-
         }
-
     }
